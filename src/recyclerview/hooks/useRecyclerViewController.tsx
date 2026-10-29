@@ -159,7 +159,9 @@ export function useRecyclerViewController<T>(
           ? recyclerViewManager.getWindowSize().width
           : recyclerViewManager.getWindowSize().height;
         const anchorStart = horizontal ? anchorLayout.x : anchorLayout.y;
-        const anchorSize = horizontal ? anchorLayout.width : anchorLayout.height;
+        const anchorSize = horizontal
+          ? anchorLayout.width
+          : anchorLayout.height;
         const anchorStillInView =
           anchorStart < viewportStart + viewportSize &&
           anchorStart + anchorSize > viewportStart;

@@ -1,10 +1,31 @@
-import { createRef } from "react";
-import { act, renderHook } from "@testing-library/react-native";
+import React, { createRef } from "react";
+import TestRenderer, { act } from "react-test-renderer";
 
 import { useRecyclerViewController } from "../recyclerview/hooks/useRecyclerViewController";
 import { RecyclerViewManager } from "../recyclerview/RecyclerViewManager";
 import { FlashListRef } from "../FlashListRef";
 import { CompatScroller } from "../recyclerview/components/CompatScroller";
+
+// renderHook mounts a hook with react-test-renderer, which the other
+// tests already use, so this test needs no extra testing library.
+const renderHook = <T,>(hook: () => T) => {
+  const result = { current: undefined as unknown as T };
+  const Probe = () => {
+    result.current = hook();
+    return null;
+  };
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  act(() => {
+    renderer = TestRenderer.create(<Probe />);
+  });
+  return {
+    result,
+    unmount: () =>
+      act(() => {
+        renderer?.unmount();
+      }),
+  };
+};
 
 interface Item {
   key: string;
