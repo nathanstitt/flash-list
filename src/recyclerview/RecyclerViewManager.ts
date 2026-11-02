@@ -300,6 +300,7 @@ export class RecyclerViewManager<T> {
   }
 
   processDataUpdate() {
+    this.itemViewabilityManager.clearLastReportedViewableIndices();
     if (this.hasLayout()) {
       this.modifyChildrenLayout([], this.propsRef.data?.length ?? 0);
       if (this.hasRenderedProgressively && !this.recomputeEngagedIndices()) {
@@ -441,8 +442,11 @@ export class RecyclerViewManager<T> {
 
   private getItemType(index: number): string {
     return (
-      this.propsRef.getItemType?.(this.propsRef.data![index], index) ??
-      "default"
+      this.propsRef.getItemType?.(
+        this.propsRef.data![index],
+        index,
+        this.propsRef.extraData
+      ) ?? "default"
     ).toString();
   }
 

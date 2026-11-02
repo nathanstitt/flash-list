@@ -18,6 +18,7 @@ import {
 import { CompatScroller } from "../components/CompatScroller";
 import { RecyclerViewManager } from "../RecyclerViewManager";
 import { adjustOffsetForRTL } from "../utils/adjustOffsetForRTL";
+import { correctWebOffset } from "../utils/webOffsetCorrection";
 import { RVLayout } from "../layout-managers/LayoutManager";
 import { ScrollAnchorRef } from "../components/ScrollAnchor";
 import { PlatformConfig } from "../../native/config/PlatformHelper";
@@ -146,6 +147,25 @@ export function useRecyclerViewController<T>(
         //    engaged window. ignoreScrollEvents stays true for 100ms
         //    after each correction, giving subsequent layout passes a
         //    chance to refine the scroll position.
+        // 3. The user has not moved away from the anchor, but items above it
+        //    were estimates and have just been measured smaller (or the
+        //    running estimate dropped), so the layout moved the anchor out of
+        //    the engaged window under them. Without the search no correction
+        //    is applied at all and the content jumps by the full difference.
+        //    Only an anchor that still overlaps the viewport qualifies: one
+        //    the user scrolled away from is not theirs to hold.
+        const anchorLayout = firstVisibleItemLayout.current!;
+        const viewportStart = recyclerViewManager.getLastScrollOffset();
+        const viewportSize = horizontal
+          ? recyclerViewManager.getWindowSize().width
+          : recyclerViewManager.getWindowSize().height;
+        const anchorStart = horizontal ? anchorLayout.x : anchorLayout.y;
+        const anchorSize = horizontal
+          ? anchorLayout.width
+          : anchorLayout.height;
+        const anchorStillInView =
+          anchorStart < viewportStart + viewportSize &&
+          anchorStart + anchorSize > viewportStart;
         const currentIndexOfFirstVisibleItem =
           recyclerViewManager
             .getEngagedIndices()
@@ -154,7 +174,9 @@ export function useRecyclerViewController<T>(
                 recyclerViewManager.getDataKey(index) ===
                 firstVisibleItemKey.current
             ) ??
-          (hasDataChanged || recyclerViewManager.ignoreScrollEvents
+          (hasDataChanged ||
+          recyclerViewManager.ignoreScrollEvents ||
+          anchorStillInView
             ? data?.findIndex(
                 (item, index) =>
                   recyclerViewManager.getDataKey(index) ===
@@ -181,9 +203,26 @@ export function useRecyclerViewController<T>(
             !recyclerViewManager.animationOptimizationsEnabled
           ) {
             // console.log("diff", diff, firstVisibleItemKey.current);
-            if (PlatformConfig.supportsOffsetCorrection) {
+            // A custom scroll component may not expose its DOM scroller; it
+            // is then corrected with scrollTo.
+            const domScroller =
+              PlatformConfig.offsetCorrection === "scrollTop"
+                ? scrollViewRef.current?.getScrollableNode?.()
+                : undefined;
+            if (PlatformConfig.offsetCorrection === "anchor") {
               // console.log("scrollBy", diff);
               scrollAnchorRef.current?.scrollBy(diff);
+            } else if (domScroller) {
+              // Before paint, from the DOM's own scroll offset: the last
+              // scroll event's offset can lag it, and the browser's scroll
+              // anchoring is off on this scroller, so this is the only
+              // correction. A right-to-left scroller's scrollLeft decreases
+              // towards the end of the list.
+              correctWebOffset(
+                domScroller,
+                I18nManager.isRTL && horizontal ? -diff : diff,
+                Boolean(horizontal)
+              );
             } else {
               const scrollToParams = horizontal
                 ? {

@@ -12,7 +12,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
-import { Animated, NativeScrollEvent } from "react-native";
+import { Animated, LayoutChangeEvent, NativeScrollEvent } from "react-native";
 
 import { FlashListProps } from "../..";
 import { PlatformConfig } from "../../native/config/PlatformHelper";
@@ -85,6 +85,21 @@ export const StickyHeaders = <TItem,>({
 
   const { currentStickyIndex, pushStartsAt } = stickyHeaderState;
 
+  // The stuck copy can render more or less than its row (renderItem draws for
+  // the "StickyHeader" target), so it is pushed by its own height: the push
+  // starts when the next header reaches the copy's bottom and ends when that
+  // header reaches the top. onLayout reports a size change only, so the last
+  // height measured is the current copy's; until the first measurement, the
+  // row's height.
+  const [copyHeight, setCopyHeight] = useState(0);
+  const getStickyHeight = useCallback(
+    (index: number) =>
+      copyHeight > 0
+        ? copyHeight
+        : recyclerViewManager.tryGetLayout(index)?.height ?? 0,
+    [copyHeight, recyclerViewManager]
+  );
+
   // sort indices and memoize compute
   const sortedIndices = useMemo(() => {
     return [...stickyHeaderIndices].sort((first, second) => first - second);
@@ -122,8 +137,7 @@ export const StickyHeaders = <TItem,>({
         ? Number.MAX_SAFE_INTEGER
         : (recyclerViewManager.tryGetLayout(newNextStickyIndex)?.y ?? 0) +
           recyclerViewManager.firstItemOffset;
-    const newCurrentStickyHeight =
-      recyclerViewManager.tryGetLayout(newStickyIndex)?.height ?? 0;
+    const newCurrentStickyHeight = getStickyHeight(newStickyIndex);
 
     // Push should start when the next header reaches the bottom of the current sticky header
     const newPushStartsAt = newNextStickyY - newCurrentStickyHeight;
@@ -149,6 +163,7 @@ export const StickyHeaders = <TItem,>({
     pushStartsAt,
     onChangeStickyIndex,
     stickyHeaderOffset,
+    getStickyHeight,
   ]);
 
   useEffect(() => {
@@ -169,8 +184,7 @@ export const StickyHeaders = <TItem,>({
   const refHolder = useRef(new Map()).current;
 
   const { translateY, opacity } = useMemo(() => {
-    const currentStickyHeight =
-      recyclerViewManager.tryGetLayout(currentStickyIndex)?.height ?? 0;
+    const currentStickyHeight = getStickyHeight(currentStickyIndex);
 
     return {
       translateY: scrollY.interpolate({
@@ -188,12 +202,16 @@ export const StickyHeaders = <TItem,>({
           : undefined,
     };
   }, [
-    recyclerViewManager,
+    getStickyHeight,
     currentStickyIndex,
     scrollY,
     pushStartsAt,
     stickyHeaderOffset,
   ]);
+
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    setCopyHeight(event.nativeEvent.layout.height);
+  }, []);
 
   // Memoize header content
   const headerContent = useMemo(() => {
@@ -208,6 +226,7 @@ export const StickyHeaders = <TItem,>({
           transform: [{ translateY }],
           opacity,
         }}
+        onLayout={onLayout}
       >
         {currentStickyIndex !== -1 && currentStickyIndex < data.length ? (
           <ViewHolder
@@ -228,6 +247,7 @@ export const StickyHeaders = <TItem,>({
   }, [
     translateY,
     opacity,
+    onLayout,
     currentStickyIndex,
     data,
     renderItem,

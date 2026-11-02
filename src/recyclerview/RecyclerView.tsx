@@ -17,15 +17,19 @@ import {
   I18nManager,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 
 import { FlashListRef } from "../FlashListRef";
 import { ErrorMessages } from "../errors/ErrorMessages";
 import { WarningMessages } from "../errors/WarningMessages";
+import { PlatformConfig } from "../native/config/PlatformHelper";
 
 import { RVDimension } from "./layout-managers/LayoutManager";
 import {
   areDimensionsNotEqual,
+  isViewHidden,
   measureFirstChildLayout,
   measureItemLayout,
   measureParentSize,
@@ -53,6 +57,7 @@ import { StickyHeaders, StickyHeaderRef } from "./components/StickyHeaders";
 import { ScrollAnchor, ScrollAnchorRef } from "./components/ScrollAnchor";
 import { useRecyclerViewController } from "./hooks/useRecyclerViewController";
 import { RenderTimeTracker } from "./helpers/RenderTimeTracker";
+import { WEB_SCROLLER_STYLE } from "./utils/webOffsetCorrection";
 
 /**
  * Main RecyclerView component that handles list rendering, scrolling, and item recycling.
@@ -164,6 +169,12 @@ const RecyclerViewComponent = <T,>(
    * This effect runs when the component mounts or when layout changes
    */
   useLayoutEffect(() => {
+    if (isViewHidden(internalViewRef.current)) {
+      // Record a zero size so onLayout sees a change when the container
+      // becomes visible again and triggers a fresh measurement.
+      containerViewSizeRef.current = { width: 0, height: 0 };
+      return;
+    }
     if (internalViewRef.current && firstChildViewRef.current) {
       // Measure the outer container size and inner container layout
       const outerViewSize = measureParentSize(internalViewRef.current);
@@ -202,7 +213,8 @@ const RecyclerViewComponent = <T,>(
    */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    if (pendingChildIds.size > 0) {
+    // Hidden container reports 0 for every item; skip and keep last layouts.
+    if (pendingChildIds.size > 0 || isViewHidden(internalViewRef.current)) {
       return;
     }
     const layoutInfo = Array.from(refHolder, ([index, viewHolderRef]) => {
@@ -374,7 +386,13 @@ const RecyclerViewComponent = <T,>(
    */
   const validateItemSize = useCallback(
     (index: number, size: RVDimension) => {
-      const layout = recyclerViewManager.getLayout(index);
+      // A ViewHolder can report its size after the layout table has already
+      // shrunk past the index it was rendered with. There is nothing left to
+      // validate the measurement against, so drop it.
+      const layout = recyclerViewManager.tryGetLayout(index);
+      if (layout === undefined) {
+        return;
+      }
       const width = Math.max(
         Math.min(layout.width, layout.maxWidth ?? Infinity),
         layout.minWidth ?? 0
@@ -526,6 +544,15 @@ const RecyclerViewComponent = <T,>(
     return null;
   }, [horizontal, shouldMaintainVisibleContentPosition]);
 
+  // While the list holds its position, the DOM scroller corrects its own
+  // offset (see webOffsetCorrection), so the browser's scroll anchoring must
+  // not correct it a second time. A style passed through overrideProps is kept.
+  const scrollerStyle: StyleProp<ViewStyle> =
+    PlatformConfig.offsetCorrection === "scrollTop" &&
+    shouldMaintainVisibleContentPosition
+      ? [WEB_SCROLLER_STYLE as ViewStyle, overrideProps?.style]
+      : overrideProps?.style;
+
   // console.log("render", recyclerViewManager.getRenderStack());
 
   // Render the main RecyclerView structure
@@ -574,6 +601,7 @@ const RecyclerViewComponent = <T,>(
           removeClippedSubviews={false}
           refreshControl={refreshControl}
           {...overrideProps}
+          style={scrollerStyle}
         >
           {/* Scroll anchor for maintaining content position */}
           {scrollAnchor}
@@ -586,7 +614,7 @@ const RecyclerViewComponent = <T,>(
             data={data}
             horizontal={horizontal}
             renderStack={recyclerViewManager.getRenderStack()}
-            getLayout={(index) => recyclerViewManager.getLayout(index)}
+            getLayout={(index) => recyclerViewManager.tryGetLayout(index)}
             getAdjustmentMargin={() => {
               if (!shouldRenderFromBottom || !recyclerViewManager.hasLayout()) {
                 return 0;

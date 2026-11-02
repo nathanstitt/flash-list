@@ -7,6 +7,7 @@
 import React, { useEffect, useImperativeHandle, useLayoutEffect } from "react";
 
 import { FlashListProps } from "../FlashListProps";
+import { PlatformConfig } from "../native/config/PlatformHelper";
 
 import { ViewHolder, ViewHolderProps } from "./ViewHolder";
 import { RVDimension, RVLayout } from "./layout-managers/LayoutManager";
@@ -23,7 +24,9 @@ export interface ViewHolderCollectionProps<TItem> {
   /** Map of indices to React keys for each rendered item */
   renderStack: Map<string, { index: number }>;
   /** Function to get layout information for a specific index */
-  getLayout: (index: number) => RVLayout;
+  // Undefined when the index is no longer in the layout table. A render stack
+  // entry can outlive a layout table shrink, and reading it must not throw.
+  getLayout: (index: number) => RVLayout | undefined;
   /** Ref to control layout updates from parent components */
   viewHolderCollectionRef: React.Ref<ViewHolderCollectionRef>;
   /** Map to store refs for each ViewHolder instance */
@@ -160,22 +163,29 @@ export const ViewHolderCollection = <TItem,>(
     opacity: renderId > 0 ? 1 : 0,
   };
 
-  // sort by index and log
-  // const sortedRenderStack = Array.from(renderStack.entries()).sort(
-  //   ([, a], [, b]) => a.index - b.index
-  // );
-  // console.log(
-  //   "sortedRenderStack",
-  //   sortedRenderStack.map(([reactKey, { index }]) => {
-  //     return `${index} => ${reactKey}`;
-  //   })
-  // );
+  const renderEntries = Array.from(renderStack.entries());
+  if (PlatformConfig.rendersItemsInIndexOrder) {
+    // Recycling hands a key to another index, so key order stops matching the
+    // data. Browsers read, Tab through and select text in DOM order, so web
+    // renders in data order; React moves the keyed nodes (no remounts) and
+    // restores the focused element. Native screen readers and keyboard focus
+    // order the cells by their position on screen, so native keeps key order
+    // and saves the view moves on every recycle.
+    renderEntries.sort(([, first], [, second]) => first.index - second.index);
+  }
 
   return (
-    <CompatView style={hasData && containerStyle}>
+    <CompatView style={hasData && containerStyle} collapsable={false}>
       {containerLayout &&
         hasData &&
-        Array.from(renderStack.entries(), ([reactKey, { index }]) => {
+        renderEntries.map(([reactKey, { index }]) => {
+          const layout = getLayout(index);
+          if (layout === undefined) {
+            // The layout table was truncated past this index while the render
+            // stack still held its key, so the item it points at is gone. The
+            // key is reused on the next render stack sync.
+            return null;
+          }
           const item = data[index];
           // Suppress separators for items in the last row to prevent
           // height mismatch. The last data item has no separator (no
@@ -192,7 +202,7 @@ export const ViewHolderCollection = <TItem,>(
               item={item}
               trailingItem={trailingItem}
               layout={{
-                ...getLayout(index),
+                ...layout,
               }}
               refHolder={refHolder}
               onSizeChanged={onSizeChanged}

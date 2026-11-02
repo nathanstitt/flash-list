@@ -1,0 +1,1 @@
+{"version":3,"file":"webOffsetCorrection.d.ts","sourceRoot":"","sources":["../../../src/recyclerview/utils/webOffsetCorrection.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AACH,eAAO,MAAM,kBAAkB;;CAAsC,CAAC;AAEtE;;;;GAIG;AACH,wBAAgB,gBAAgB,CAC9B,IAAI,EAAE;IAAE,SAAS,EAAE,MAAM,CAAC;IAAC,UAAU,EAAE,MAAM,CAAA;CAAE,EAC/C,IAAI,EAAE,MAAM,EACZ,UAAU,EAAE,OAAO,GAClB,IAAI,CAMN"}
