@@ -1,11 +1,11 @@
 import React from "react";
-import { ScrollView, Text } from "react-native";
+import { I18nManager, ScrollView, StyleSheet, Text } from "react-native";
 import "@quilted/react-testing/matchers";
 import { render } from "@quilted/react-testing";
 
 import { FlashList } from "..";
 
-import { mountController, sized } from "./helpers/mountController";
+import { mountController, sized, sizedAcross } from "./helpers/mountController";
 
 // The web platform config, as react-native-web's bundler resolves it.
 jest.mock("../native/config/PlatformHelper", () =>
@@ -48,7 +48,7 @@ describe("useRecyclerViewController offset correction on web", () => {
         items: 50,
         itemHeight: 100,
         scrolledTo: 2000,
-        scrollableNode: node,
+        getScrollableNode: () => node,
       }
     );
     controller().computeFirstVisibleIndexForOffsetCorrection();
@@ -65,6 +65,60 @@ describe("useRecyclerViewController offset correction on web", () => {
     expect(node.scrollTop).toBe(2130);
     unmount();
   });
+
+  it.each([
+    ["has no getScrollableNode", undefined],
+    ["returns no node", () => null],
+  ])(
+    "scrolls to the corrected offset when the scroll component %s",
+    (_, getScrollableNode) => {
+      // A custom scroll component (renderScrollComponent) may not expose its DOM scroller.
+      const { controller, settle, scrollTo, unmount } = mountController({
+        items: 50,
+        itemHeight: 100,
+        scrolledTo: 2000,
+        getScrollableNode,
+      });
+      controller().computeFirstVisibleIndexForOffsetCorrection();
+
+      settle(sized([5], 200));
+
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ y: 2100, animated: false });
+      unmount();
+    }
+  );
+
+  describe("right to left", () => {
+    const wasRTL = I18nManager.isRTL;
+    beforeEach(() => {
+      I18nManager.isRTL = true;
+    });
+    afterEach(() => {
+      I18nManager.isRTL = wasRTL;
+    });
+
+    it("moves a horizontal scroller towards the end, which is leftwards, by the growth", () => {
+      // In a right-to-left page the scroller starts at scrollLeft 0 and scrolling towards the
+      // later items makes scrollLeft negative. Item 5 is the first in view.
+      const node = { scrollTop: 0, scrollLeft: -500 };
+      const { controller, settle, scrollTo, unmount } = mountController({
+        items: 20,
+        itemHeight: 100,
+        scrolledTo: 500,
+        horizontal: true,
+        getScrollableNode: () => node,
+      });
+      controller().computeFirstVisibleIndexForOffsetCorrection();
+
+      // Item 2, before the view, grows by 50px.
+      settle(sizedAcross([2], 150));
+
+      expect(node.scrollLeft).toBe(-550);
+      expect(scrollTo).not.toHaveBeenCalled();
+      unmount();
+    });
+  });
 });
 
 describe("FlashList scroller on web", () => {
@@ -72,17 +126,45 @@ describe("FlashList scroller on web", () => {
     jest.useFakeTimers();
   });
 
-  it("turns the browser's own scroll anchoring off on the scroller", () => {
-    const result = render(
-      <FlashList
-        data={[0, 1, 2]}
-        renderItem={({ item }) => <Text>{item}</Text>}
-      />
-    );
-
-    expect(result).toContainReactComponent(ScrollView, {
-      style: expect.objectContaining({ overflowAnchor: "none" }),
-    });
+  const scrollerStyle = (list: React.ReactElement) => {
+    const result = render(list);
+    const style = StyleSheet.flatten(result.find(ScrollView)!.prop("style"));
     result.unmount();
+    return style ?? {};
+  };
+
+  it("turns the browser's own scroll anchoring off on the scroller", () => {
+    expect(
+      scrollerStyle(
+        <FlashList
+          data={[0, 1, 2]}
+          renderItem={({ item }) => <Text>{item}</Text>}
+        />
+      )
+    ).toMatchObject({ overflowAnchor: "none" });
+  });
+
+  it("leaves the browser's scroll anchoring on when the list does not hold its position", () => {
+    expect(
+      scrollerStyle(
+        <FlashList
+          data={[0, 1, 2]}
+          renderItem={({ item }) => <Text>{item}</Text>}
+          maintainVisibleContentPosition={{ disabled: true }}
+        />
+      )
+    ).not.toHaveProperty("overflowAnchor");
+  });
+
+  it("keeps a scroller style passed through overrideProps", () => {
+    expect(
+      scrollerStyle(
+        <FlashList
+          data={[0, 1, 2]}
+          renderItem={({ item }) => <Text>{item}</Text>}
+          overrideProps={{ style: { overflow: "visible" } }}
+        />
+      )
+    ).toMatchObject({ overflowAnchor: "none", overflow: "visible" });
   });
 });

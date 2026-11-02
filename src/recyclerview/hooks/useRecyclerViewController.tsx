@@ -203,17 +203,26 @@ export function useRecyclerViewController<T>(
             !recyclerViewManager.animationOptimizationsEnabled
           ) {
             // console.log("diff", diff, firstVisibleItemKey.current);
+            // A custom scroll component may not expose its DOM scroller; it
+            // is then corrected with scrollTo.
+            const domScroller =
+              PlatformConfig.offsetCorrection === "scrollTop"
+                ? scrollViewRef.current?.getScrollableNode?.()
+                : undefined;
             if (PlatformConfig.offsetCorrection === "anchor") {
               // console.log("scrollBy", diff);
               scrollAnchorRef.current?.scrollBy(diff);
-            } else if (PlatformConfig.offsetCorrection === "scrollTop") {
-              // Before paint, from the DOM's own scrollTop: the last scroll
-              // event's offset can lag it, and the browser's scroll anchoring
-              // is off on this scroller, so this is the only correction.
-              const node = scrollViewRef.current?.getScrollableNode();
-              if (node) {
-                correctWebOffset(node, diff, Boolean(horizontal));
-              }
+            } else if (domScroller) {
+              // Before paint, from the DOM's own scroll offset: the last
+              // scroll event's offset can lag it, and the browser's scroll
+              // anchoring is off on this scroller, so this is the only
+              // correction. A right-to-left scroller's scrollLeft decreases
+              // towards the end of the list.
+              correctWebOffset(
+                domScroller,
+                I18nManager.isRTL && horizontal ? -diff : diff,
+                Boolean(horizontal)
+              );
             } else {
               const scrollToParams = horizontal
                 ? {

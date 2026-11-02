@@ -544,12 +544,14 @@ const RecyclerViewComponent = <T,>(
     return null;
   }, [horizontal, shouldMaintainVisibleContentPosition]);
 
-  // The DOM scroller corrects its own offset (see webOffsetCorrection), so
-  // the browser's scroll anchoring must not correct it a second time.
-  const scrollerStyle =
-    PlatformConfig.offsetCorrection === "scrollTop"
-      ? (WEB_SCROLLER_STYLE as StyleProp<ViewStyle>)
-      : undefined;
+  // While the list holds its position, the DOM scroller corrects its own
+  // offset (see webOffsetCorrection), so the browser's scroll anchoring must
+  // not correct it a second time. A style passed through overrideProps is kept.
+  const scrollerStyle: StyleProp<ViewStyle> =
+    PlatformConfig.offsetCorrection === "scrollTop" &&
+    shouldMaintainVisibleContentPosition
+      ? [WEB_SCROLLER_STYLE as ViewStyle, overrideProps?.style]
+      : overrideProps?.style;
 
   // console.log("render", recyclerViewManager.getRenderStack());
 
@@ -592,7 +594,6 @@ const RecyclerViewComponent = <T,>(
           {...rest}
           horizontal={horizontal}
           ref={scrollViewRef}
-          style={scrollerStyle}
           onScroll={animatedEvent}
           maintainVisibleContentPosition={
             maintainVisibleContentPositionInternal
@@ -600,6 +601,7 @@ const RecyclerViewComponent = <T,>(
           removeClippedSubviews={false}
           refreshControl={refreshControl}
           {...overrideProps}
+          style={scrollerStyle}
         >
           {/* Scroll anchor for maintaining content position */}
           {scrollAnchor}

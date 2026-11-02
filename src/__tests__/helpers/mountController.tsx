@@ -33,17 +33,25 @@ interface Item {
 
 const WINDOW = { width: 400, height: 800 };
 
-const propsFor = (keys: string[]) => ({
+const propsFor = (keys: string[], horizontal: boolean) => ({
   data: keys.map((key) => ({ key })),
   keyExtractor: (item: Item) => item.key,
   renderItem: () => null,
   maintainVisibleContentPosition: {},
+  horizontal,
 });
 
 export const sized = (indices: number[], height: number) =>
   indices.map((index) => ({
     index,
     dimensions: { width: WINDOW.width, height },
+  }));
+
+/** Items of a horizontal list, `width` wide. */
+export const sizedAcross = (indices: number[], width: number) =>
+  indices.map((index) => ({
+    index,
+    dimensions: { width, height: WINDOW.height },
   }));
 
 export const range = (start: number, end: number) =>
@@ -53,24 +61,28 @@ export const sum = (values: number[]) =>
   values.reduce((total, value) => total + value, 0);
 
 /**
- * A list of `items` items, each `itemHeight` tall and measured, scrolled to `scrolledTo`.
- * `scrollableNode` is what the scroller's `getScrollableNode` returns (the DOM scroller on web).
+ * A list of `items` items, each `itemHeight` tall (wide, when `horizontal`) and measured,
+ * scrolled to `scrolledTo`.
+ * `getScrollableNode` is the scroller's own (it returns the DOM scroller on web); a custom scroll
+ * component may not have one.
  */
 export const mountController = ({
   items = 10,
   itemHeight = 200,
   scrolledTo = 250,
-  scrollableNode = undefined as unknown,
+  getScrollableNode = undefined as (() => unknown) | undefined,
+  horizontal = false,
 } = {}) => {
   const keys = Array.from({ length: items }, (_, index) => `item-${index}`);
-  const manager = new RecyclerViewManager<Item>(propsFor(keys));
+  const manager = new RecyclerViewManager<Item>(propsFor(keys, horizontal));
+  const measure = horizontal ? sizedAcross : sized;
   const all = keys.map((_, index) => index);
 
   manager.updateLayoutParams(WINDOW, 0);
   // Every item measured, so the initial progressive render completes; until then scroll
   // offsets are not applied.
   for (let pass = 0; pass < 5; pass++) {
-    if (!manager.modifyChildrenLayout(sized(all, itemHeight), items)) {
+    if (!manager.modifyChildrenLayout(measure(all, itemHeight), items)) {
       break;
     }
   }
@@ -81,10 +93,7 @@ export const mountController = ({
   const scrollTo = jest.fn();
   const ref = createRef<FlashListRef<Item>>();
   const scrollViewRef = {
-    current: {
-      scrollTo,
-      getScrollableNode: () => scrollableNode,
-    } as unknown as CompatScroller,
+    current: { scrollTo, getScrollableNode } as unknown as CompatScroller,
   };
   const scrollAnchorRef = { current: { scrollBy } };
   const hook = renderHook(() =>
