@@ -661,6 +661,17 @@ describe("StickyHeaders - Compute Function", () => {
       expect(pushAt(500)).toBe(-120);
     });
 
+    it("pushes a copy without the row's separator so that it touches the next header", () => {
+      // A cell's measured height includes its ItemSeparatorComponent; the stuck copy renders no
+      // separator. Rows are 50px: 40px of content and a 10px separator. The copy is 40px.
+      const { layOut, pushAt } = renderTallCopy(100);
+      layOut(40);
+
+      expect(pushAt(460)).toBe(0);
+      expect(pushAt(480)).toBe(-20);
+      expect(pushAt(500)).toBe(-40);
+    });
+
     it("pushes by the row's height until the copy has been measured", () => {
       const { pushAt } = renderTallCopy(100);
 
