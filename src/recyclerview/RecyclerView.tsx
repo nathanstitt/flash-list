@@ -17,11 +17,14 @@ import {
   I18nManager,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 
 import { FlashListRef } from "../FlashListRef";
 import { ErrorMessages } from "../errors/ErrorMessages";
 import { WarningMessages } from "../errors/WarningMessages";
+import { PlatformConfig } from "../native/config/PlatformHelper";
 
 import { RVDimension } from "./layout-managers/LayoutManager";
 import {
@@ -54,6 +57,7 @@ import { StickyHeaders, StickyHeaderRef } from "./components/StickyHeaders";
 import { ScrollAnchor, ScrollAnchorRef } from "./components/ScrollAnchor";
 import { useRecyclerViewController } from "./hooks/useRecyclerViewController";
 import { RenderTimeTracker } from "./helpers/RenderTimeTracker";
+import { WEB_SCROLLER_STYLE } from "./utils/webOffsetCorrection";
 
 /**
  * Main RecyclerView component that handles list rendering, scrolling, and item recycling.
@@ -540,6 +544,13 @@ const RecyclerViewComponent = <T,>(
     return null;
   }, [horizontal, shouldMaintainVisibleContentPosition]);
 
+  // The DOM scroller corrects its own offset (see webOffsetCorrection), so
+  // the browser's scroll anchoring must not correct it a second time.
+  const scrollerStyle =
+    PlatformConfig.offsetCorrection === "scrollTop"
+      ? (WEB_SCROLLER_STYLE as StyleProp<ViewStyle>)
+      : undefined;
+
   // console.log("render", recyclerViewManager.getRenderStack());
 
   // Render the main RecyclerView structure
@@ -581,6 +592,7 @@ const RecyclerViewComponent = <T,>(
           {...rest}
           horizontal={horizontal}
           ref={scrollViewRef}
+          style={scrollerStyle}
           onScroll={animatedEvent}
           maintainVisibleContentPosition={
             maintainVisibleContentPositionInternal

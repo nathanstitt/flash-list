@@ -18,6 +18,7 @@ import {
 import { CompatScroller } from "../components/CompatScroller";
 import { RecyclerViewManager } from "../RecyclerViewManager";
 import { adjustOffsetForRTL } from "../utils/adjustOffsetForRTL";
+import { correctWebOffset } from "../utils/webOffsetCorrection";
 import { RVLayout } from "../layout-managers/LayoutManager";
 import { ScrollAnchorRef } from "../components/ScrollAnchor";
 import { PlatformConfig } from "../../native/config/PlatformHelper";
@@ -202,9 +203,17 @@ export function useRecyclerViewController<T>(
             !recyclerViewManager.animationOptimizationsEnabled
           ) {
             // console.log("diff", diff, firstVisibleItemKey.current);
-            if (PlatformConfig.supportsOffsetCorrection) {
+            if (PlatformConfig.offsetCorrection === "anchor") {
               // console.log("scrollBy", diff);
               scrollAnchorRef.current?.scrollBy(diff);
+            } else if (PlatformConfig.offsetCorrection === "scrollTop") {
+              // Before paint, from the DOM's own scrollTop: the last scroll
+              // event's offset can lag it, and the browser's scroll anchoring
+              // is off on this scroller, so this is the only correction.
+              const node = scrollViewRef.current?.getScrollableNode();
+              if (node) {
+                correctWebOffset(node, diff, Boolean(horizontal));
+              }
             } else {
               const scrollToParams = horizontal
                 ? {

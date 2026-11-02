@@ -1,8 +1,9 @@
 import { isRN083OrAbove } from "./versionCheck";
+import { OffsetCorrection } from "./OffsetCorrection";
 
 const PlatformConfig = {
   defaultDrawDistance: 250,
-  supportsOffsetCorrection: true,
+  offsetCorrection: "anchor" as OffsetCorrection,
   trackAverageRenderTimeForOffsetProjection: false,
   isRN083OrAbove: isRN083OrAbove(),
   invertedTransformStyle: { transform: [{ scaleY: -1 }] } as const,
