@@ -31,6 +31,8 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
     // Track the first visible item for maintaining scroll position
     const firstVisibleItemKey = useRef(undefined);
     const firstVisibleItemLayout = useRef(undefined);
+    // The data the last offset correction ran for: the data on screen.
+    const correctedDataRef = useRef(recyclerViewManager.props.data);
     // Queue to store callbacks that should be executed after scroll offset updates
     const pendingScrollCallbacks = useRef([]);
     // Handle initial scroll position when the list first loads
@@ -188,6 +190,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
             computeFirstVisibleIndexForOffsetCorrection();
         }
         lastDataLengthRef.current = recyclerViewManager.getDataLength();
+        correctedDataRef.current = recyclerViewManager.props.data;
     }, [
         recyclerViewManager,
         scrollAnchorRef,
@@ -196,6 +199,20 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
         updateScrollOffsetWithCallback,
         computeFirstVisibleIndexForOffsetCorrection,
     ]);
+    /**
+     * Takes the item first in view at the scroll offset as the one to hold. The item is otherwise
+     * taken after each layout commit and when a scroll ends, so during a scroll that renders
+     * nothing new it stays the item that was first in view when the scroll started, and a data
+     * change then holds that item, which may be out of view, and moves the items in view.
+     * A render that took new data has already moved the manager to the new layout; until that
+     * render commits and corrects, the item taken before it is the one to hold.
+     */
+    const followScrollForOffsetCorrection = useCallback(() => {
+        if (recyclerViewManager.props.data !== correctedDataRef.current) {
+            return;
+        }
+        computeFirstVisibleIndexForOffsetCorrection();
+    }, [recyclerViewManager, computeFirstVisibleIndexForOffsetCorrection]);
     const handlerMethods = useMemo(() => {
         return {
             get props() {
@@ -543,6 +560,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
     return {
         applyOffsetCorrection,
         computeFirstVisibleIndexForOffsetCorrection,
+        followScrollForOffsetCorrection,
         applyInitialScrollIndex,
         handlerMethods,
     };
