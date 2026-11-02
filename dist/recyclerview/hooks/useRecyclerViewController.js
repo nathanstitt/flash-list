@@ -1,6 +1,7 @@
 import { useCallback, useImperativeHandle, useMemo, useRef, useState, } from "react";
 import { I18nManager } from "react-native";
 import { adjustOffsetForRTL } from "../utils/adjustOffsetForRTL";
+import { correctWebOffset } from "../utils/webOffsetCorrection";
 import { PlatformConfig } from "../../native/config/PlatformHelper";
 import { WarningMessages } from "../../errors/WarningMessages";
 import { useUnmountFlag } from "./useUnmountFlag";
@@ -78,7 +79,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
      * the user's current view position when new messages are added.
      */
     const applyOffsetCorrection = useCallback(() => {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const { horizontal, data } = recyclerViewManager.props;
         // Execute all pending callbacks from previous scroll offset updates
         // This ensures any scroll operations that were waiting for render are completed
@@ -145,9 +146,18 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
                         !pauseOffsetCorrection.current &&
                         !recyclerViewManager.animationOptimizationsEnabled) {
                         // console.log("diff", diff, firstVisibleItemKey.current);
-                        if (PlatformConfig.supportsOffsetCorrection) {
+                        if (PlatformConfig.offsetCorrection === "anchor") {
                             // console.log("scrollBy", diff);
                             (_b = scrollAnchorRef.current) === null || _b === void 0 ? void 0 : _b.scrollBy(diff);
+                        }
+                        else if (PlatformConfig.offsetCorrection === "scrollTop") {
+                            // Before paint, from the DOM's own scrollTop: the last scroll
+                            // event's offset can lag it, and the browser's scroll anchoring
+                            // is off on this scroller, so this is the only correction.
+                            const node = (_c = scrollViewRef.current) === null || _c === void 0 ? void 0 : _c.getScrollableNode();
+                            if (node) {
+                                correctWebOffset(node, diff, Boolean(horizontal));
+                            }
                         }
                         else {
                             const scrollToParams = horizontal
@@ -159,7 +169,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
                                     y: recyclerViewManager.getAbsoluteLastScrollOffset() + diff,
                                     animated: false,
                                 };
-                            (_c = scrollViewRef.current) === null || _c === void 0 ? void 0 : _c.scrollTo(scrollToParams);
+                            (_d = scrollViewRef.current) === null || _d === void 0 ? void 0 : _d.scrollTo(scrollToParams);
                         }
                         if (hasDataChanged) {
                             updateScrollOffsetWithCallback(recyclerViewManager.getAbsoluteLastScrollOffset() + diff, () => { });

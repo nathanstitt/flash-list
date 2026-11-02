@@ -13,6 +13,19 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
         pushStartsAt: Number.MAX_SAFE_INTEGER,
     });
     const { currentStickyIndex, pushStartsAt } = stickyHeaderState;
+    // The stuck copy can render more or less than its row (renderItem draws for
+    // the "StickyHeader" target), so it is pushed by its own height: the push
+    // starts when the next header reaches the copy's bottom and ends when that
+    // header reaches the top. onLayout reports a size change only, so the last
+    // height measured is the current copy's; until the first measurement, the
+    // row's height.
+    const [copyHeight, setCopyHeight] = useState(0);
+    const getStickyHeight = useCallback((index) => {
+        var _a, _b;
+        return copyHeight > 0
+            ? copyHeight
+            : (_b = (_a = recyclerViewManager.tryGetLayout(index)) === null || _a === void 0 ? void 0 : _a.height) !== null && _b !== void 0 ? _b : 0;
+    }, [copyHeight, recyclerViewManager]);
     // sort indices and memoize compute
     const sortedIndices = useMemo(() => {
         return [...stickyHeaderIndices].sort((first, second) => first - second);
@@ -21,7 +34,7 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
         recyclerViewManager.getDataLength() <=
             sortedIndices[sortedIndices.length - 1];
     const compute = useCallback(() => {
-        var _a, _b, _c, _d, _e, _f;
+        var _a, _b, _c, _d;
         if (lengthInvalid) {
             return;
         }
@@ -39,7 +52,7 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
             ? Number.MAX_SAFE_INTEGER
             : ((_d = (_c = recyclerViewManager.tryGetLayout(newNextStickyIndex)) === null || _c === void 0 ? void 0 : _c.y) !== null && _d !== void 0 ? _d : 0) +
                 recyclerViewManager.firstItemOffset;
-        const newCurrentStickyHeight = (_f = (_e = recyclerViewManager.tryGetLayout(newStickyIndex)) === null || _e === void 0 ? void 0 : _e.height) !== null && _f !== void 0 ? _f : 0;
+        const newCurrentStickyHeight = getStickyHeight(newStickyIndex);
         // Push should start when the next header reaches the bottom of the current sticky header
         const newPushStartsAt = newNextStickyY - newCurrentStickyHeight;
         if (newStickyIndex !== currentStickyIndex ||
@@ -60,6 +73,7 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
         pushStartsAt,
         onChangeStickyIndex,
         stickyHeaderOffset,
+        getStickyHeight,
     ]);
     useEffect(() => {
         compute();
@@ -72,8 +86,7 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
     }), [compute]);
     const refHolder = useRef(new Map()).current;
     const { translateY, opacity } = useMemo(() => {
-        var _a, _b;
-        const currentStickyHeight = (_b = (_a = recyclerViewManager.tryGetLayout(currentStickyIndex)) === null || _a === void 0 ? void 0 : _a.height) !== null && _b !== void 0 ? _b : 0;
+        const currentStickyHeight = getStickyHeight(currentStickyIndex);
         return {
             translateY: scrollY.interpolate({
                 inputRange: [pushStartsAt, pushStartsAt + currentStickyHeight],
@@ -89,12 +102,15 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
                 : undefined,
         };
     }, [
-        recyclerViewManager,
+        getStickyHeight,
         currentStickyIndex,
         scrollY,
         pushStartsAt,
         stickyHeaderOffset,
     ]);
+    const onLayout = useCallback((event) => {
+        setCopyHeight(event.nativeEvent.layout.height);
+    }, []);
     // Memoize header content
     const headerContent = useMemo(() => {
         return (React.createElement(CompatAnimatedView, { style: {
@@ -105,10 +121,11 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
                 zIndex: stickyHeaderZIndex,
                 transform: [{ translateY }],
                 opacity,
-            } }, currentStickyIndex !== -1 && currentStickyIndex < data.length ? (React.createElement(ViewHolder, { index: currentStickyIndex, item: data[currentStickyIndex], renderItem: renderItem, layout: { x: 0, y: 0, width: 0, height: 0 }, refHolder: refHolder, extraData: extraData, trailingItem: null, target: "StickyHeader", hidden: false, inverted: inverted })) : null));
+            }, onLayout: onLayout }, currentStickyIndex !== -1 && currentStickyIndex < data.length ? (React.createElement(ViewHolder, { index: currentStickyIndex, item: data[currentStickyIndex], renderItem: renderItem, layout: { x: 0, y: 0, width: 0, height: 0 }, refHolder: refHolder, extraData: extraData, trailingItem: null, target: "StickyHeader", hidden: false, inverted: inverted })) : null));
     }, [
         translateY,
         opacity,
+        onLayout,
         currentStickyIndex,
         data,
         renderItem,

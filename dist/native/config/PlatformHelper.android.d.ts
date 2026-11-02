@@ -1,6 +1,8 @@
+import { OffsetCorrection } from "./OffsetCorrection";
 declare const PlatformConfig: {
     defaultDrawDistance: number;
-    supportsOffsetCorrection: boolean;
+    offsetCorrection: OffsetCorrection;
+    rendersItemsInIndexOrder: boolean;
     trackAverageRenderTimeForOffsetProjection: boolean;
     isRN083OrAbove: boolean;
     invertedTransformStyle: {

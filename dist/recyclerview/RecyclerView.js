@@ -6,6 +6,7 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, forwardRef, useSt
 import { Animated, I18nManager, } from "react-native";
 import { ErrorMessages } from "../errors/ErrorMessages";
 import { WarningMessages } from "../errors/WarningMessages";
+import { PlatformConfig } from "../native/config/PlatformHelper";
 import { areDimensionsNotEqual, isViewHidden, measureFirstChildLayout, measureItemLayout, measureParentSize, } from "./utils/measureLayout";
 import { RecyclerViewContextProvider, useRecyclerViewContext, } from "./RecyclerViewContextProvider";
 import { useLayoutState } from "./hooks/useLayoutState";
@@ -21,6 +22,7 @@ import { StickyHeaders } from "./components/StickyHeaders";
 import { ScrollAnchor } from "./components/ScrollAnchor";
 import { useRecyclerViewController } from "./hooks/useRecyclerViewController";
 import { RenderTimeTracker } from "./helpers/RenderTimeTracker";
+import { WEB_SCROLLER_STYLE } from "./utils/webOffsetCorrection";
 /**
  * Main RecyclerView component that handles list rendering, scrolling, and item recycling.
  * @template T - The type of items in the list
@@ -345,6 +347,11 @@ const RecyclerViewComponent = (props, ref) => {
         }
         return null;
     }, [horizontal, shouldMaintainVisibleContentPosition]);
+    // The DOM scroller corrects its own offset (see webOffsetCorrection), so
+    // the browser's scroll anchoring must not correct it a second time.
+    const scrollerStyle = PlatformConfig.offsetCorrection === "scrollTop"
+        ? WEB_SCROLLER_STYLE
+        : undefined;
     // console.log("render", recyclerViewManager.getRenderStack());
     // Render the main RecyclerView structure
     return (React.createElement(RecyclerViewContextProvider, { value: recyclerViewContext },
@@ -367,7 +374,7 @@ const RecyclerViewComponent = (props, ref) => {
                     recyclerViewContext.layout();
                 }
             } },
-            React.createElement(CompatScrollView, { ...rest, horizontal: horizontal, ref: scrollViewRef, onScroll: animatedEvent, maintainVisibleContentPosition: maintainVisibleContentPositionInternal, removeClippedSubviews: false, refreshControl: refreshControl, ...overrideProps },
+            React.createElement(CompatScrollView, { ...rest, horizontal: horizontal, ref: scrollViewRef, style: scrollerStyle, onScroll: animatedEvent, maintainVisibleContentPosition: maintainVisibleContentPositionInternal, removeClippedSubviews: false, refreshControl: refreshControl, ...overrideProps },
                 scrollAnchor,
                 isHorizontalRTL && viewToMeasureBoundedSize,
                 renderHeader,

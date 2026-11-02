@@ -1,1 +1,1 @@
-{"version":3,"file":"PlatformHelper.d.ts","sourceRoot":"","sources":["../../../src/native/config/PlatformHelper.ts"],"names":[],"mappings":"AAAA,QAAA,MAAM,cAAc;;;;;;;;;;;;;;;CAOnB,CAAC;AAEF,OAAO,EAAE,cAAc,EAAE,CAAC"}
+{"version":3,"file":"PlatformHelper.d.ts","sourceRoot":"","sources":["../../../src/native/config/PlatformHelper.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,gBAAgB,EAAE,MAAM,oBAAoB,CAAC;AAEtD,QAAA,MAAM,cAAc;;sBAEc,gBAAgB;;;;;;;;;;;;;;CAMjD,CAAC;AAEF,OAAO,EAAE,cAAc,EAAE,CAAC"}

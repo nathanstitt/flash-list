@@ -1,6 +1,7 @@
 const PlatformConfig = {
     defaultDrawDistance: 250,
-    supportsOffsetCorrection: false,
+    offsetCorrection: "scrollTo",
+    rendersItemsInIndexOrder: false,
     trackAverageRenderTimeForOffsetProjection: false,
     isRN083OrAbove: true,
     invertedTransformStyle: { transform: [{ scaleY: -1 }] },
