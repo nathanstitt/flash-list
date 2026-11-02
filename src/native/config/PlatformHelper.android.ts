@@ -4,6 +4,7 @@ import { OffsetCorrection } from "./OffsetCorrection";
 const PlatformConfig = {
   defaultDrawDistance: 250,
   offsetCorrection: "anchor" as OffsetCorrection,
+  rendersItemsInIndexOrder: false,
   trackAverageRenderTimeForOffsetProjection: true,
   isRN083OrAbove: isRN083OrAbove(),
   // Using rotate instead of scaleY on Android to avoid performance issues.

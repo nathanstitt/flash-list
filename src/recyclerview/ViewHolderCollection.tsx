@@ -7,6 +7,7 @@
 import React, { useEffect, useImperativeHandle, useLayoutEffect } from "react";
 
 import { FlashListProps } from "../FlashListProps";
+import { PlatformConfig } from "../native/config/PlatformHelper";
 
 import { ViewHolder, ViewHolderProps } from "./ViewHolder";
 import { RVDimension, RVLayout } from "./layout-managers/LayoutManager";
@@ -162,22 +163,22 @@ export const ViewHolderCollection = <TItem,>(
     opacity: renderId > 0 ? 1 : 0,
   };
 
-  // sort by index and log
-  // const sortedRenderStack = Array.from(renderStack.entries()).sort(
-  //   ([, a], [, b]) => a.index - b.index
-  // );
-  // console.log(
-  //   "sortedRenderStack",
-  //   sortedRenderStack.map(([reactKey, { index }]) => {
-  //     return `${index} => ${reactKey}`;
-  //   })
-  // );
+  const renderEntries = Array.from(renderStack.entries());
+  if (PlatformConfig.rendersItemsInIndexOrder) {
+    // Recycling hands a key to another index, so key order stops matching the
+    // data. Browsers read, Tab through and select text in DOM order, so web
+    // renders in data order; React moves the keyed nodes (no remounts) and
+    // restores the focused element. Native screen readers and keyboard focus
+    // order the cells by their position on screen, so native keeps key order
+    // and saves the view moves on every recycle.
+    renderEntries.sort(([, first], [, second]) => first.index - second.index);
+  }
 
   return (
     <CompatView style={hasData && containerStyle} collapsable={false}>
       {containerLayout &&
         hasData &&
-        Array.from(renderStack.entries(), ([reactKey, { index }]) => {
+        renderEntries.map(([reactKey, { index }]) => {
           const layout = getLayout(index);
           if (layout === undefined) {
             // The layout table was truncated past this index while the render
