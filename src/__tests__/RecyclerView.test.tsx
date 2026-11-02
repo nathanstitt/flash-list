@@ -293,7 +293,7 @@ describe("RecyclerView", () => {
 
       // Simulate scroll event from initialScrollIndex programmatic scroll
       scrollTo(result, 500);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
 
       // Should NOT have fired despite items being visible
       expect(onViewableItemsChanged).not.toHaveBeenCalled();
@@ -320,7 +320,7 @@ describe("RecyclerView", () => {
 
       // Initial scroll - no callback
       scrollTo(result, 500);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
       expect(onViewableItemsChanged).not.toHaveBeenCalled();
 
       // Clear the initial scroll flag (simulating the 100ms timeout completing)
@@ -331,7 +331,7 @@ describe("RecyclerView", () => {
 
       // User scroll simulation
       scrollTo(result, 600);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
 
       // NOW callback should fire
       expect(onViewableItemsChanged).toHaveBeenCalled();
@@ -475,13 +475,13 @@ describe("RecyclerView", () => {
       //    renders and is laid out at least once. After this, FlashList
       //    has measurements for the target.
       scrollTo(result, 200);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
 
       // 2. Return to the bottom to arm MVCP autoscroll. The momentum-end
       //    path in onScrollHandler refreshes firstVisibleItemKey /
       //    firstVisibleItemLayout to a snapshot of the current anchor.
       scrollTo(result, 1101);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
 
       // 3. Sit still past useBoundDetection's 100ms checkBounds guard.
       jest.advanceTimersByTime(150);
@@ -531,11 +531,11 @@ describe("RecyclerView", () => {
       nativeScrollRef.scrollToEnd = scrollToEndSpy;
 
       scrollTo(result, 1101);
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
       scrollToEndSpy.mockClear();
 
       result.setProps({ data: [...data, 100] });
-      jest.runAllTimers();
+      result.act(() => jest.runAllTimers());
 
       expect(scrollToEndSpy).toHaveBeenCalled();
     });
