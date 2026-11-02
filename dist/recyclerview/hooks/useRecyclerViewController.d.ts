@@ -22,6 +22,7 @@ import { ScrollAnchorRef } from "../components/ScrollAnchor";
 export declare function useRecyclerViewController<T>(recyclerViewManager: RecyclerViewManager<T>, ref: React.Ref<FlashListRef<T>>, scrollViewRef: RefObject<CompatScroller>, scrollAnchorRef: React.RefObject<ScrollAnchorRef>): {
     applyOffsetCorrection: () => void;
     computeFirstVisibleIndexForOffsetCorrection: () => void;
+    followScrollForOffsetCorrection: () => void;
     applyInitialScrollIndex: () => void;
     handlerMethods: FlashListRef<T>;
 };

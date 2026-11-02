@@ -61,7 +61,7 @@ const RecyclerViewComponent = (props, ref) => {
     const refHolder = useMemo(() => new Map(), []);
     // Initialize core RecyclerView manager and content offset management
     const { recyclerViewManager, velocityTracker } = useRecyclerViewManager(props);
-    const { applyOffsetCorrection, computeFirstVisibleIndexForOffsetCorrection, applyInitialScrollIndex, handlerMethods, } = useRecyclerViewController(recyclerViewManager, ref, scrollViewRef, scrollAnchorRef);
+    const { applyOffsetCorrection, computeFirstVisibleIndexForOffsetCorrection, followScrollForOffsetCorrection, applyInitialScrollIndex, handlerMethods, } = useRecyclerViewController(recyclerViewManager, ref, scrollViewRef, scrollAnchorRef);
     // Initialize view holder collection ref
     const viewHolderCollectionRef = useRef(null);
     // Hook to handle list loading
@@ -182,6 +182,10 @@ const RecyclerViewComponent = (props, ref) => {
             if (recyclerViewManager.updateScrollOffset(scrollOffset, velocity)) {
                 setRenderId((prev) => prev + 1);
             }
+            else {
+                // Nothing new to render, so no commit retakes the item to hold.
+                followScrollForOffsetCorrection();
+            }
         });
         // Update sticky headers and check bounds
         (_a = stickyHeaderRef.current) === null || _a === void 0 ? void 0 : _a.reportScrollEvent(event.nativeEvent);
@@ -198,6 +202,7 @@ const RecyclerViewComponent = (props, ref) => {
     }, [
         checkBounds,
         computeFirstVisibleIndexForOffsetCorrection,
+        followScrollForOffsetCorrection,
         horizontal,
         isHorizontalRTL,
         recyclerViewManager,
