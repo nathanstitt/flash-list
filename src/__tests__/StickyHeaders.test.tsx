@@ -609,6 +609,92 @@ describe("StickyHeaders - Compute Function", () => {
     });
   });
 
+  describe("Push by the stuck copy's own height", () => {
+    // Sticky headers at 0, 10, 20; items are 50px, so header 10 sits at y=500. The stuck copy
+    // of header 0 draws more than its row (a renderItem that draws extra for the
+    // "StickyHeader" target): it is 120px tall.
+    const renderTallCopy = (scrollOffset: number) => {
+      const manager = createMockRecyclerViewManager({
+        scrollOffset,
+        layouts: createStandardLayouts(),
+      });
+      const ref = createRef<StickyHeaderRef>();
+      const scrollY = new Animated.Value(scrollOffset);
+      const result = render(
+        <StickyHeaders
+          stickyHeaderIndices={[0, 10, 20]}
+          stickyHeaderOffset={0}
+          data={testData}
+          scrollY={scrollY}
+          renderItem={renderItem}
+          stickyHeaderRef={ref}
+          recyclerViewManager={manager}
+          extraData={undefined}
+          onChangeStickyIndex={jest.fn()}
+        />
+      );
+      const layOut = (height: number) =>
+        result.act(() => {
+          result.find(Animated.View)!.trigger("onLayout", {
+            nativeEvent: { layout: { x: 0, y: 0, width: 400, height } },
+          });
+        });
+      // The copy's move at a scroll offset, as the animation driver computes it.
+      const pushAt = (offset: number) => {
+        result.act(() => scrollY.setValue(offset));
+        const style = result.find(Animated.View)!.prop("style") as {
+          transform: { translateY: Animated.AnimatedInterpolation<number> }[];
+        };
+        return (
+          style.transform[0].translateY as unknown as { __getValue(): number }
+        ).__getValue();
+      };
+      return { manager, ref, layOut, pushAt };
+    };
+
+    it("starts the push when the next header reaches the copy's bottom and ends it at the top", () => {
+      const { layOut, pushAt } = renderTallCopy(100);
+      layOut(120);
+
+      expect(pushAt(380)).toBe(0);
+      expect(pushAt(440)).toBe(-60);
+      expect(pushAt(500)).toBe(-120);
+    });
+
+    it("pushes by the row's height until the copy has been measured", () => {
+      const { pushAt } = renderTallCopy(100);
+
+      expect(pushAt(450)).toBe(0);
+      expect(pushAt(500)).toBe(-50);
+    });
+
+    it("keeps the copy's height when the stuck header changes and the copy keeps its size", () => {
+      const { manager, ref, layOut, pushAt } = renderTallCopy(100);
+      layOut(120);
+
+      // Header 10 is stuck now; header 20 sits at y=1000. The copy did not change size, so no
+      // new layout is reported.
+      manager.getLastScrollOffset = jest.fn(() => 600);
+      act(() => ref.current?.reportScrollEvent({} as any));
+
+      expect(pushAt(880)).toBe(0);
+      expect(pushAt(1000)).toBe(-120);
+    });
+
+    it("pushes by the new height when the copy of the next stuck header lays out at another size", () => {
+      const { manager, ref, layOut, pushAt } = renderTallCopy(100);
+      layOut(120);
+
+      manager.getLastScrollOffset = jest.fn(() => 600);
+      act(() => ref.current?.reportScrollEvent({} as any));
+      layOut(80);
+
+      expect(pushAt(920)).toBe(0);
+      expect(pushAt(960)).toBe(-40);
+      expect(pushAt(1000)).toBe(-80);
+    });
+  });
+
   describe("Component Rendering with Offset", () => {
     it("should render sticky header at correct top position with offset", () => {
       const layouts = createStandardLayouts();
