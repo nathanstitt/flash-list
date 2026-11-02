@@ -347,11 +347,13 @@ const RecyclerViewComponent = (props, ref) => {
         }
         return null;
     }, [horizontal, shouldMaintainVisibleContentPosition]);
-    // The DOM scroller corrects its own offset (see webOffsetCorrection), so
-    // the browser's scroll anchoring must not correct it a second time.
-    const scrollerStyle = PlatformConfig.offsetCorrection === "scrollTop"
-        ? WEB_SCROLLER_STYLE
-        : undefined;
+    // While the list holds its position, the DOM scroller corrects its own
+    // offset (see webOffsetCorrection), so the browser's scroll anchoring must
+    // not correct it a second time. A style passed through overrideProps is kept.
+    const scrollerStyle = PlatformConfig.offsetCorrection === "scrollTop" &&
+        shouldMaintainVisibleContentPosition
+        ? [WEB_SCROLLER_STYLE, overrideProps === null || overrideProps === void 0 ? void 0 : overrideProps.style]
+        : overrideProps === null || overrideProps === void 0 ? void 0 : overrideProps.style;
     // console.log("render", recyclerViewManager.getRenderStack());
     // Render the main RecyclerView structure
     return (React.createElement(RecyclerViewContextProvider, { value: recyclerViewContext },
@@ -374,7 +376,7 @@ const RecyclerViewComponent = (props, ref) => {
                     recyclerViewContext.layout();
                 }
             } },
-            React.createElement(CompatScrollView, { ...rest, horizontal: horizontal, ref: scrollViewRef, style: scrollerStyle, onScroll: animatedEvent, maintainVisibleContentPosition: maintainVisibleContentPositionInternal, removeClippedSubviews: false, refreshControl: refreshControl, ...overrideProps },
+            React.createElement(CompatScrollView, { ...rest, horizontal: horizontal, ref: scrollViewRef, onScroll: animatedEvent, maintainVisibleContentPosition: maintainVisibleContentPositionInternal, removeClippedSubviews: false, refreshControl: refreshControl, ...overrideProps, style: scrollerStyle },
                 scrollAnchor,
                 isHorizontalRTL && viewToMeasureBoundedSize,
                 renderHeader,

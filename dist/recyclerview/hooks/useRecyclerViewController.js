@@ -79,7 +79,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
      * the user's current view position when new messages are added.
      */
     const applyOffsetCorrection = useCallback(() => {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         const { horizontal, data } = recyclerViewManager.props;
         // Execute all pending callbacks from previous scroll offset updates
         // This ensures any scroll operations that were waiting for render are completed
@@ -146,18 +146,22 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
                         !pauseOffsetCorrection.current &&
                         !recyclerViewManager.animationOptimizationsEnabled) {
                         // console.log("diff", diff, firstVisibleItemKey.current);
+                        // A custom scroll component may not expose its DOM scroller; it
+                        // is then corrected with scrollTo.
+                        const domScroller = PlatformConfig.offsetCorrection === "scrollTop"
+                            ? (_c = (_b = scrollViewRef.current) === null || _b === void 0 ? void 0 : _b.getScrollableNode) === null || _c === void 0 ? void 0 : _c.call(_b)
+                            : undefined;
                         if (PlatformConfig.offsetCorrection === "anchor") {
                             // console.log("scrollBy", diff);
-                            (_b = scrollAnchorRef.current) === null || _b === void 0 ? void 0 : _b.scrollBy(diff);
+                            (_d = scrollAnchorRef.current) === null || _d === void 0 ? void 0 : _d.scrollBy(diff);
                         }
-                        else if (PlatformConfig.offsetCorrection === "scrollTop") {
-                            // Before paint, from the DOM's own scrollTop: the last scroll
-                            // event's offset can lag it, and the browser's scroll anchoring
-                            // is off on this scroller, so this is the only correction.
-                            const node = (_c = scrollViewRef.current) === null || _c === void 0 ? void 0 : _c.getScrollableNode();
-                            if (node) {
-                                correctWebOffset(node, diff, Boolean(horizontal));
-                            }
+                        else if (domScroller) {
+                            // Before paint, from the DOM's own scroll offset: the last
+                            // scroll event's offset can lag it, and the browser's scroll
+                            // anchoring is off on this scroller, so this is the only
+                            // correction. A right-to-left scroller's scrollLeft decreases
+                            // towards the end of the list.
+                            correctWebOffset(domScroller, I18nManager.isRTL && horizontal ? -diff : diff, Boolean(horizontal));
                         }
                         else {
                             const scrollToParams = horizontal
@@ -169,7 +173,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
                                     y: recyclerViewManager.getAbsoluteLastScrollOffset() + diff,
                                     animated: false,
                                 };
-                            (_d = scrollViewRef.current) === null || _d === void 0 ? void 0 : _d.scrollTo(scrollToParams);
+                            (_e = scrollViewRef.current) === null || _e === void 0 ? void 0 : _e.scrollTo(scrollToParams);
                         }
                         if (hasDataChanged) {
                             updateScrollOffsetWithCallback(recyclerViewManager.getAbsoluteLastScrollOffset() + diff, () => { });
