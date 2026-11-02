@@ -58,6 +58,8 @@ export function useRecyclerViewController<T>(
   // Track the first visible item for maintaining scroll position
   const firstVisibleItemKey = useRef<string | undefined>(undefined);
   const firstVisibleItemLayout = useRef<RVLayout | undefined>(undefined);
+  // The data the last offset correction ran for: the data on screen.
+  const correctedDataRef = useRef(recyclerViewManager.props.data);
 
   // Queue to store callbacks that should be executed after scroll offset updates
   const pendingScrollCallbacks = useRef<(() => void)[]>([]);
@@ -252,6 +254,7 @@ export function useRecyclerViewController<T>(
       computeFirstVisibleIndexForOffsetCorrection();
     }
     lastDataLengthRef.current = recyclerViewManager.getDataLength();
+    correctedDataRef.current = recyclerViewManager.props.data;
   }, [
     recyclerViewManager,
     scrollAnchorRef,
@@ -260,6 +263,21 @@ export function useRecyclerViewController<T>(
     updateScrollOffsetWithCallback,
     computeFirstVisibleIndexForOffsetCorrection,
   ]);
+
+  /**
+   * Takes the item first in view at the scroll offset as the one to hold. The item is otherwise
+   * taken after each layout commit and when a scroll ends, so during a scroll that renders
+   * nothing new it stays the item that was first in view when the scroll started, and a data
+   * change then holds that item, which may be out of view, and moves the items in view.
+   * A render that took new data has already moved the manager to the new layout; until that
+   * render commits and corrects, the item taken before it is the one to hold.
+   */
+  const followScrollForOffsetCorrection = useCallback(() => {
+    if (recyclerViewManager.props.data !== correctedDataRef.current) {
+      return;
+    }
+    computeFirstVisibleIndexForOffsetCorrection();
+  }, [recyclerViewManager, computeFirstVisibleIndexForOffsetCorrection]);
 
   const handlerMethods: FlashListRef<T> = useMemo(() => {
     return {
@@ -675,6 +693,7 @@ export function useRecyclerViewController<T>(
   return {
     applyOffsetCorrection,
     computeFirstVisibleIndexForOffsetCorrection,
+    followScrollForOffsetCorrection,
     applyInitialScrollIndex,
     handlerMethods,
   };

@@ -144,6 +144,7 @@ const RecyclerViewComponent = <T,>(
   const {
     applyOffsetCorrection,
     computeFirstVisibleIndexForOffsetCorrection,
+    followScrollForOffsetCorrection,
     applyInitialScrollIndex,
     handlerMethods,
   } = useRecyclerViewController(
@@ -310,6 +311,9 @@ const RecyclerViewComponent = <T,>(
           // Update scroll position and trigger re-render if needed
           if (recyclerViewManager.updateScrollOffset(scrollOffset, velocity)) {
             setRenderId((prev) => prev + 1);
+          } else {
+            // Nothing new to render, so no commit retakes the item to hold.
+            followScrollForOffsetCorrection();
           }
         }
       );
@@ -332,6 +336,7 @@ const RecyclerViewComponent = <T,>(
     [
       checkBounds,
       computeFirstVisibleIndexForOffsetCorrection,
+      followScrollForOffsetCorrection,
       horizontal,
       isHorizontalRTL,
       recyclerViewManager,
