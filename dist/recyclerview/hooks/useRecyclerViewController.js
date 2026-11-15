@@ -213,6 +213,40 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
         }
         computeFirstVisibleIndexForOffsetCorrection();
     }, [recyclerViewManager, computeFirstVisibleIndexForOffsetCorrection]);
+    /**
+     * Runs when a render takes new data, before the manager moves to the new layout. On web the
+     * DOM scroller can have moved after the last scroll event, whose event the browser sends only
+     * at its next rendering step. The item taken at the old offset may then be one the user has
+     * scrolled out of view, and items inserted below it would move the items in view. The item is
+     * taken again at the DOM's offset, still on the layout that is on screen.
+     */
+    const holdItemAtLiveOffset = useCallback(() => {
+        var _a, _b;
+        if (PlatformConfig.offsetCorrection !== "scrollTop" ||
+            !recyclerViewManager.getIsFirstLayoutComplete() ||
+            !recyclerViewManager.shouldMaintainVisibleContentPosition()) {
+            return;
+        }
+        const node = (_b = (_a = scrollViewRef.current) === null || _a === void 0 ? void 0 : _a.getScrollableNode) === null || _b === void 0 ? void 0 : _b.call(_a);
+        if (!node) {
+            return;
+        }
+        const { horizontal } = recyclerViewManager.props;
+        let liveOffset = horizontal ? node.scrollLeft : node.scrollTop;
+        // The same conversion the scroll handler applies to a scroll event's offset.
+        if (I18nManager.isRTL && horizontal) {
+            liveOffset = adjustOffsetForRTL(liveOffset, node.scrollWidth, node.clientWidth);
+        }
+        if (liveOffset === recyclerViewManager.getAbsoluteLastScrollOffset()) {
+            return;
+        }
+        recyclerViewManager.updateScrollOffset(liveOffset);
+        computeFirstVisibleIndexForOffsetCorrection();
+    }, [
+        recyclerViewManager,
+        scrollViewRef,
+        computeFirstVisibleIndexForOffsetCorrection,
+    ]);
     const handlerMethods = useMemo(() => {
         return {
             get props() {
@@ -561,6 +595,7 @@ export function useRecyclerViewController(recyclerViewManager, ref, scrollViewRe
         applyOffsetCorrection,
         computeFirstVisibleIndexForOffsetCorrection,
         followScrollForOffsetCorrection,
+        holdItemAtLiveOffset,
         applyInitialScrollIndex,
         handlerMethods,
     };

@@ -23,6 +23,7 @@ export declare function useRecyclerViewController<T>(recyclerViewManager: Recycl
     applyOffsetCorrection: () => void;
     computeFirstVisibleIndexForOffsetCorrection: () => void;
     followScrollForOffsetCorrection: () => void;
+    holdItemAtLiveOffset: () => void;
     applyInitialScrollIndex: () => void;
     handlerMethods: FlashListRef<T>;
 };

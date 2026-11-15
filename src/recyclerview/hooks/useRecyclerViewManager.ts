@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 
 import { RecyclerViewProps } from "../RecyclerViewProps";
 import { RecyclerViewManager } from "../RecyclerViewManager";
 import { VelocityTracker } from "../helpers/VelocityTracker";
 
-export const useRecyclerViewManager = <T>(props: RecyclerViewProps<T>) => {
+/**
+ * @param beforeDataUpdate - Called when a render takes new data, while the manager still holds
+ * the old data and the layout that is on screen.
+ */
+export const useRecyclerViewManager = <T>(
+  props: RecyclerViewProps<T>,
+  beforeDataUpdate?: RefObject<(() => void) | undefined>
+) => {
   const [recyclerViewManager] = useState<RecyclerViewManager<T>>(
     () => new RecyclerViewManager(props)
   );
@@ -15,6 +22,10 @@ export const useRecyclerViewManager = <T>(props: RecyclerViewProps<T>) => {
   const lastSyncedData = useRef<RecyclerViewProps<T>["data"] | undefined>(
     undefined
   );
+
+  if (lastSyncedData.current !== undefined && lastSyncedData.current !== data) {
+    beforeDataUpdate?.current?.();
+  }
 
   // A render that React discards can still mutate the manager. Track what the
   // manager actually saw so a later render can restore the committed props.
