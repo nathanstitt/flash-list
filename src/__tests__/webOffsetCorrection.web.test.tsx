@@ -1,9 +1,10 @@
-import React from "react";
+import React, { createRef } from "react";
 import { I18nManager, ScrollView, StyleSheet, Text } from "react-native";
 import "@quilted/react-testing/matchers";
 import { render } from "@quilted/react-testing";
 
 import { FlashList } from "..";
+import { FlashListRef } from "../FlashListRef";
 
 import { mountController, sized, sizedAcross } from "./helpers/mountController";
 
@@ -118,6 +119,58 @@ describe("useRecyclerViewController offset correction on web", () => {
       expect(scrollTo).not.toHaveBeenCalled();
       unmount();
     });
+  });
+});
+
+describe("FlashList offset correction on web while a scroll event is pending", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  const scrollEvent = (root: ReturnType<typeof render>, y: number) => {
+    const scrollable = root.findWhere((node: any) => node.props.onScroll);
+    if (!scrollable) throw new Error("Could not find scrollable component");
+    const onScroll: any = scrollable.prop("onScroll" as never);
+    root.act(() => {
+      onScroll({
+        nativeEvent: {
+          contentOffset: { x: 0, y },
+          contentSize: { width: 399, height: 3000 },
+          layoutMeasurement: { width: 399, height: 899 },
+        },
+      });
+    });
+  };
+
+  it("holds the item first in view at the DOM's offset when data changes before the scroll event arrives", () => {
+    // 30 items of 100px, all rendered. The last scroll event said 998: item 9 (900 to 1000) is
+    // still 2px in view there.
+    const data = Array.from({ length: 30 }, (_, i) => i);
+    const ref = createRef<FlashListRef<number>>();
+    const result = render(
+      <FlashList
+        ref={ref}
+        data={data}
+        keyExtractor={(item) => String(item)}
+        drawDistance={5000}
+        renderItem={({ item }) => <Text>{item}</Text>}
+      />
+    );
+    result.act(() => jest.runAllTimers());
+    const node = { scrollTop: 998, scrollLeft: 0 };
+    (ref.current?.getNativeScrollRef() as any).getScrollableNode = () => node;
+    scrollEvent(result, 998);
+
+    // The DOM scroller then moves to 1002, so item 10 is first in view, but its scroll event has
+    // not arrived yet when three items arrive after item 9, above item 10.
+    node.scrollTop = 1002;
+    result.setProps({
+      data: [...data.slice(0, 10), 100, 101, 102, ...data.slice(10)],
+    });
+
+    // Item 10 is 300px lower, and the DOM scroller follows it.
+    expect(node.scrollTop).toBe(1302);
   });
 });
 

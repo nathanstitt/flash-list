@@ -60,8 +60,11 @@ const RecyclerViewComponent = (props, ref) => {
     // Map to store refs for each item in the list
     const refHolder = useMemo(() => new Map(), []);
     // Initialize core RecyclerView manager and content offset management
-    const { recyclerViewManager, velocityTracker } = useRecyclerViewManager(props);
-    const { applyOffsetCorrection, computeFirstVisibleIndexForOffsetCorrection, followScrollForOffsetCorrection, applyInitialScrollIndex, handlerMethods, } = useRecyclerViewController(recyclerViewManager, ref, scrollViewRef, scrollAnchorRef);
+    // The controller is created after the manager, so the manager reaches its hook through a ref.
+    const beforeDataUpdateRef = useRef(undefined);
+    const { recyclerViewManager, velocityTracker } = useRecyclerViewManager(props, beforeDataUpdateRef);
+    const { applyOffsetCorrection, computeFirstVisibleIndexForOffsetCorrection, followScrollForOffsetCorrection, holdItemAtLiveOffset, applyInitialScrollIndex, handlerMethods, } = useRecyclerViewController(recyclerViewManager, ref, scrollViewRef, scrollAnchorRef);
+    beforeDataUpdateRef.current = holdItemAtLiveOffset;
     // Initialize view holder collection ref
     const viewHolderCollectionRef = useRef(null);
     // Hook to handle list loading

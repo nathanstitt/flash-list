@@ -139,12 +139,17 @@ const RecyclerViewComponent = <T,>(
   );
 
   // Initialize core RecyclerView manager and content offset management
-  const { recyclerViewManager, velocityTracker } =
-    useRecyclerViewManager(props);
+  // The controller is created after the manager, so the manager reaches its hook through a ref.
+  const beforeDataUpdateRef = useRef<(() => void) | undefined>(undefined);
+  const { recyclerViewManager, velocityTracker } = useRecyclerViewManager(
+    props,
+    beforeDataUpdateRef
+  );
   const {
     applyOffsetCorrection,
     computeFirstVisibleIndexForOffsetCorrection,
     followScrollForOffsetCorrection,
+    holdItemAtLiveOffset,
     applyInitialScrollIndex,
     handlerMethods,
   } = useRecyclerViewController(
@@ -153,6 +158,7 @@ const RecyclerViewComponent = <T,>(
     scrollViewRef,
     scrollAnchorRef
   );
+  beforeDataUpdateRef.current = holdItemAtLiveOffset;
 
   // Initialize view holder collection ref
   const viewHolderCollectionRef = useRef<ViewHolderCollectionRef>(null);
