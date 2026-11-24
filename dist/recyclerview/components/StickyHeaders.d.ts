@@ -41,6 +41,11 @@ export interface StickyHeaderProps<TItem> {
 export interface StickyHeaderRef {
     /** Reports scroll events to update sticky header positions */
     reportScrollEvent: (event: NativeScrollEvent) => void;
+    /**
+     * Computes the sticky header when an earlier compute found no layouts to
+     * read. RecyclerView calls it after each layout pass.
+     */
+    computeIfSkipped: () => void;
 }
 export declare const StickyHeaders: <TItem>({ stickyHeaderIndices, stickyHeaderOffset, renderItem, stickyHeaderRef, recyclerViewManager, scrollY, data, extraData, onChangeStickyIndex, inverted, stickyHeaderZIndex, }: StickyHeaderProps<TItem>) => React.JSX.Element | null;
 //# sourceMappingURL=StickyHeaders.d.ts.map

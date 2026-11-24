@@ -33,11 +33,20 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
     const lengthInvalid = sortedIndices.length === 0 ||
         recyclerViewManager.getDataLength() <=
             sortedIndices[sortedIndices.length - 1];
+    const skippedForMissingLayoutsRef = useRef(false);
     const compute = useCallback(() => {
         var _a, _b, _c, _d;
         if (lengthInvalid) {
             return;
         }
+        // A list that gets its data while its container is hidden has no layout
+        // manager (or no layouts) yet. Layouts are contiguous, so the last sticky
+        // index tells whether every index the search reads has one.
+        if (recyclerViewManager.tryGetLayout(sortedIndices[sortedIndices.length - 1]) === undefined) {
+            skippedForMissingLayoutsRef.current = true;
+            return;
+        }
+        skippedForMissingLayoutsRef.current = false;
         const adjustedScrollOffset = recyclerViewManager.getLastScrollOffset();
         // Binary search for current sticky index
         const currentIndexInArray = findCurrentStickyIndex(sortedIndices, adjustedScrollOffset + stickyHeaderOffset, (index) => recyclerViewManager.getLayout(index).y);
@@ -82,6 +91,11 @@ export const StickyHeaders = ({ stickyHeaderIndices, stickyHeaderOffset, renderI
     useImperativeHandle(stickyHeaderRef, () => ({
         reportScrollEvent: () => {
             compute();
+        },
+        computeIfSkipped: () => {
+            if (skippedForMissingLayoutsRef.current) {
+                compute();
+            }
         },
     }), [compute]);
     const refHolder = useRef(new Map()).current;

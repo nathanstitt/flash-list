@@ -264,6 +264,10 @@ const RecyclerViewComponent = <T,>(
       applyOffsetCorrection();
     }
 
+    // StickyHeaders computes on mount, but a list that got its data while
+    // hidden had no layouts then; they exist from this pass on.
+    stickyHeaderRef.current?.computeIfSkipped();
+
     if (
       horizontal &&
       recyclerViewManager.hasLayout() &&
