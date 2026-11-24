@@ -111,7 +111,7 @@ const RecyclerViewComponent = (props, ref) => {
      */
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useLayoutEffect(() => {
-        var _a, _b;
+        var _a, _b, _c;
         // Hidden container reports 0 for every item; skip and keep last layouts.
         if (pendingChildIds.size > 0 || isViewHidden(internalViewRef.current)) {
             return;
@@ -146,6 +146,9 @@ const RecyclerViewComponent = (props, ref) => {
             (_b = viewHolderCollectionRef.current) === null || _b === void 0 ? void 0 : _b.commitLayout();
             applyOffsetCorrection();
         }
+        // StickyHeaders computes on mount, but a list that got its data while
+        // hidden had no layouts then; they exist from this pass on.
+        (_c = stickyHeaderRef.current) === null || _c === void 0 ? void 0 : _c.computeIfSkipped();
         if (horizontal &&
             recyclerViewManager.hasLayout() &&
             recyclerViewManager.getWindowSize().height > 0) {

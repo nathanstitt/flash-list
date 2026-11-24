@@ -56,6 +56,11 @@ export interface StickyHeaderProps<TItem> {
 export interface StickyHeaderRef {
   /** Reports scroll events to update sticky header positions */
   reportScrollEvent: (event: NativeScrollEvent) => void;
+  /**
+   * Computes the sticky header when an earlier compute found no layouts to
+   * read. RecyclerView calls it after each layout pass.
+   */
+  computeIfSkipped: () => void;
 }
 
 interface StickyHeaderState {
@@ -110,10 +115,24 @@ export const StickyHeaders = <TItem,>({
     recyclerViewManager.getDataLength() <=
       sortedIndices[sortedIndices.length - 1];
 
+  const skippedForMissingLayoutsRef = useRef(false);
+
   const compute = useCallback(() => {
     if (lengthInvalid) {
       return;
     }
+    // A list that gets its data while its container is hidden has no layout
+    // manager (or no layouts) yet. Layouts are contiguous, so the last sticky
+    // index tells whether every index the search reads has one.
+    if (
+      recyclerViewManager.tryGetLayout(
+        sortedIndices[sortedIndices.length - 1]
+      ) === undefined
+    ) {
+      skippedForMissingLayoutsRef.current = true;
+      return;
+    }
+    skippedForMissingLayoutsRef.current = false;
     const adjustedScrollOffset = recyclerViewManager.getLastScrollOffset();
 
     // Binary search for current sticky index
@@ -176,6 +195,11 @@ export const StickyHeaders = <TItem,>({
     () => ({
       reportScrollEvent: () => {
         compute();
+      },
+      computeIfSkipped: () => {
+        if (skippedForMissingLayoutsRef.current) {
+          compute();
+        }
       },
     }),
     [compute]
